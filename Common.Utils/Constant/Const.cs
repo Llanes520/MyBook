@@ -4,11 +4,17 @@ using System.Text;
 
 namespace Common.Utils.Constant
 {
-    public struct TypeClaims
+    public class Const
     {
-        public const string
-            IdUser = "IsUser",
-            UserName = "UserName",
-            IdRol = "IsRol";
+        public struct TypeClaims
+        {
+            public const string
+                IdUser = "IsUser",
+                UserName = "UserName",
+                IdRol = "IdRol",
+                Token = "Token",
+                Expiracion = "Expiracion";
+        }
     }
+    
 }

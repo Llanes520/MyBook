@@ -1,0 +1,607 @@
+﻿@using Common.Utils.Enums
+@using static Common.Utils.Constant.Const
+
+@{
+    ViewData["Title"] = "Mis Libros";
+
+    var idRols = User.Claims.FirstOrDefault(x => x.Type == TypeClaims.IdRol).Value;
+
+    bool isAdmin = idRols.Any(x => x.ToString() == Convert.ToInt32(Enums.RolUser.Administrador).ToString());
+    bool isStandar = idRols.Any(x => x.ToString() == Convert.ToInt32(Enums.RolUser.Estandar).ToString());
+}
+
+@if (isAdmin)
+{
+    <h1>Listado de Libros</h1>
+
+
+<p>
+
+    <button class="btn btn-primary" onclick="nuevoLibro()">
+
+        <i class="far fa-book"></i> Nuevo Libro
+    </button>
+</p>
+
+<div class="row">
+
+    <table class="table">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Titulo</th>
+                <th scope="col">Sipnosis</th>
+                <th scope="col">Numero paginas</th>
+                <th scope="col">Editorial</th>
+                <th scope="col">Tipo de libro</th>
+                <th scope="col">Opciones</th>
+            </tr>
+        </thead>
+
+        <tbody id="cuerpoBooks"></tbody>
+    </table>
+
+</div>
+
+
+
+<div class="modal fade" id="modalBook" tabindex="1" role="dialog" aria-labelledby="modalPetLabel" aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="idTituloModalBook">Crear Libro</h5>
+            </div>
+            <div class="modal-body">
+                <form>
+
+                    <div class="row">
+                        <div class="col-md-4 form-group">
+                            <label for="recipient-name" class="col-form-label">Titulo</label>
+                            <input type="text" class="form-control" id="txtTitleBook" placeholder="Nombre libro" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="recipient-name" class="col-form-label">Sipnosis</label>
+                            <input type="text" class="form-control" id="txtSipnosis" placeholder="Sipnosis del libro" required>
+                        </div>
+                        <div class="col-md-4 form-group">
+                            <label for="recipient-name" class="col-form-label">Numero de paginas</label>
+                            <input type="text" class="form-control" id="txtNumPage" placeholder="Numero de paginas" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label class="control-label"> Editorial</label>
+                            <select id="cmbEditorial" class="form-control" onchange="seleccionarEditorial()" required>
+                                <option> Seleccionar</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label class="control-label"> Tipo Libro</label>
+                            <select id="cmbTypeBook" class="form-control" onchange="seleccionarTipoLibro()" required>
+                                <option> Seleccionar</option>
+                            </select>
+                        </div>
+                    </div>
+
+
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal">
+                    <i class="fas fa-window-close"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-success" onclick="guardarBook()">
+                    <i class="far fa-save"></i>
+                    Guardar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts{
+  @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+<script type="text/javascript" charset="utf-8">
+   
+    var listaBook= [];
+    var listEditorial=[];
+    var listTypeBook=[];
+    let idEditorial='';
+    let idTypeBook='';
+    let idBook='';
+    let Books='';
+    $(document).ready(function () {
+
+
+       getAllEditorial();
+       getAllTypeBook();
+       getAllMyBook();
+
+    });
+    function getAllMyBook() {
+        modalProcesando(true);
+        $.ajax({
+            url: '@Url.Action("GetAllMyBook", "Book")',
+            method: 'GET',
+            dataType: "json",
+            success: function (data) {
+                modalProcesando(false);
+                console.log(data);
+                if(data.isSuccess)
+                {
+                    listaBook=data.result;
+                    cargarGridBook(listaBook);
+                    console.log(listaBook);
+                }else{
+                    Swal.fire(
+                                'Opps!',
+                                data.message,
+                                'error');
+                }
+
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                    modalProcesando(false);
+                    console.error(xhr, textStatus, errorThrown);
+                }
+         });
+    }
+    function cargarGridBook(data){
+        console.log(data);
+
+        $("#cuerpoBooks").html("");
+        for(var i=0; i<data.length ; i++){
+            var tr=`
+             <tr>
+                <th>`+ data[i].titulo+ `</th>
+                <th> `+ data[i].sipnosis +`</th>
+                <th> `+ data[i].paginas +`</th>
+                <th> `+ data[i].nombre + `</th>
+                <th> `+ data[i].typeBook + `</th>
+                <td>
+                <button  class="btn btn-warning" onclick="editarBook(`+ data[i].idBook +`)"><i class="fas fa-edit"></i> Editar</button>
+                <button class="btn btn-danger" onclick="eliminarBook(`+ data[i].idBook +`)"><i class="far fa-trash-alt"></i> Eliminar</button>
+                </td>
+            </tr>
+            `;
+            $("#cuerpoBooks").append(tr);
+        }
+    }
+    function eliminarBook(idBook){
+
+        console.log("mandó a eliminar", idBook);
+        Swal.fire({
+            title: '¿Confirmar Eliminacion?',
+            text: "No podrás revertir esto.!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Si, Eliminar!',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                modalProcesando(true);
+                //petición
+                $.ajax({
+                    url: '@Url.Action("DeleteBook", "Book")',
+                    method: 'DELETE',
+                    data:{
+                        book:idBook
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(data);
+                        if (data.isSuccess){
+                            //listaBook=listaBook.filter(x=>x.id!=idBook);
+                            getAllMyBook();
+                            Swal.fire(
+                                'Eliminado!',
+                                data.message,
+                                'success');
+                        }else{
+                            Swal.fire(
+                                'Error!',
+                                data.message,
+                                'error');
+                        }
+                     },
+                     error: function (xhr, textStatus, errorThrown) {
+                         modalProcesando(false);
+                         console.error(xhr, textStatus, errorThrown);
+                     }
+                  });
+                }
+            });
+        }
+
+    function nuevoLibro(){
+       if(listEditorial.length==0){
+            getAllEditorial();
+        }
+        if(listTypeBook.length==0){
+            getAllTypeBook();
+        }
+       $('#idTituloModalBook').html("Crear Libro");
+       $('#modalBook').modal({keyboard:true});
+    }
+
+    function getAllEditorial(){
+        modalProcesando(true);
+        $.ajax({
+            url: '@Url.Action("GetAllEditorial", "Book")',
+            method: 'GET',
+            dataType: "json",
+            success: function (data) {
+                modalProcesando(false);
+                if(data.isSuccess)
+                {
+                    listEditorial=data;
+                    console.log(listEditorial);
+                    cargarEditorial(listEditorial);
+                }else{
+                    Swal.fire(
+                        'Opps!',
+                        data.message,
+                        'error');
+                }
+
+                
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                    modalProcesando(false);
+                    console.error(xhr, textStatus, errorThrown);
+                }
+         });
+    }
+    function getAllTypeBook() {
+        modalProcesando(true);
+        $.ajax({
+            url: '@Url.Action("GetAllTypeBook", "Book")',
+            method: 'GET',
+            dataType: "json",
+            success: function (data) {
+                modalProcesando(false);
+                if(data.isSuccess)
+                {
+                    listTypeBook=data;
+                    console.log(listTypeBook)
+                    cargarTypeBooks(listTypeBook);
+                }else{
+                    Swal.fire(
+                        'Opps!',
+                        data.message,
+                        'error');
+                }
+
+
+                
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                    modalProcesando(false);
+                    console.error(xhr, textStatus, errorThrown);
+                }
+         });
+    }
+    function cargarEditorial(data, selected) {
+        $("#cmbEditorial").empty();
+        $("#cmbEditorial").append('<option value="" disabled selected>Seleccione una editorial</option>');
+        $.each(data.result, function (i, lista) {
+            if (data.result[i].idEditorial == selected) {
+                $("#cmbEditorial").append('<option value="' + data.result[i].idEditorial + '"selected>' + data.result[i].nombre + '</option>');
+            }
+            else {
+                $("#cmbEditorial").append('<option value="' + data.result[i].idEditorial + '">' + data.result[i].nombre + '</option>');
+            }
+        });
+    }
+    function cargarTypeBooks(data, selected) {
+        $("#cmbTypeBook").empty();
+        $("#cmbTypeBook").append('<option value="" disabled selected>Seleccione un Tipo de libro</option>');
+        $.each(data.result, function (i, lista) {
+            if (data.result[i].idTypeBook == selected) {
+                $("#cmbTypeBook").append('<option value="' + data.result[i].idTypeBook + '"selected>' + data.result[i].typeBook + '</option>');
+            }
+            else {
+                $("#cmbTypeBook").append('<option value="' + data.result[i].idTypeBook + '">' + data.result[i].typeBook + '</option>');
+            }
+        });
+    }
+    function guardarBook(){
+        if(validarForm())
+        {
+            let parametro={
+                titulo:$("#txtTitleBook").val(),
+                Sipnosis:$("#txtSipnosis").val(),
+                Paginas:$("#txtNumPage").val(),
+                IdEditorial:idEditorial,
+                IdTypeBook:idTypeBook,
+            };
+            console.log(Books);
+            if(Books=='')
+            {
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("InsertBook", "Book")',
+                    method: 'POST',
+                    data:parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaBook);
+                        if (data){
+                            $('#modalBook').modal('hide');
+                            limpiarForm();
+                            toastMessage('success','Libro guardado exitosamente!');
+                            getAllMyBook();
+                        }else{
+                             toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                            modalProcesando(false);
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                            console.error(xhr, textStatus, errorThrown);
+                        }
+                 });
+            }else{
+                parametro.idBook=Books;
+                console.log(parametro);
+                console.log('actualizar');
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("UpdateBook", "Book")',
+                    method: 'PUT',
+                    data:parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaBook);
+                        if (data){
+                            $('#modalPet').modal('hide');
+                            limpiarForm();
+                            toastMessage('success','Libro guardado exitosamente!');
+                            getAllMyBook();
+                        }else{
+                             toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                            modalProcesando(false);
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                            console.error(xhr, textStatus, errorThrown);
+                        }
+                 });
+            }
+        }
+    }
+    function validarForm(){
+        if($("#txtTitleBook").val()=='')
+        {
+                $("#txtTitleBook").focus();
+                toastMessage('warning','El titulo es obligatorio.');
+                return false;
+        }
+        if($("#txtSipnosis").val()=='')
+        {
+                $("#txtSipnosis").focus();
+                toastMessage('warning','La sipnosis es obligatoria.');
+                return false;
+        }
+        if($("#txtNumPage").val()=='')
+        {
+                $("#txtNumPage").focus();
+                toastMessage('warning','El numero de paginas es obligatorio.');
+                return false;
+        }
+        if(idEditorial=='')
+        {
+                $("#cmbEditorial").focus();
+                toastMessage('warning','La editorial es obligatoria.');
+                return false;
+        }
+        if(idTypeBook=='')
+        {
+                $("#cmbTypeBook").focus();
+                toastMessage('warning','El tipo de libro es obligatorio.');
+                return false;
+        }
+        return true;
+    }
+    function limpiarForm(){
+       $("#txtTitleBook").val('');
+       $("#txtSipnosis").val('');
+       $("#txtNumPage").val('');
+       idEditorial='';
+       idTypeBook='';
+       idBook='';
+       cargarEditorial(listEditorial);
+       cargarTypeBooks(listTypeBook);
+    }
+    function seleccionarEditorial(){
+        var combo=document.getElementById("cmbEditorial");
+        let selected = combo.options[combo.selectedIndex].value;
+        //let text = combo.options[combo.selectedIndex].text;
+        idEditorial=selected;
+    }
+    function seleccionarTipoLibro(){
+        var combo=document.getElementById("cmbTypeBook");
+        let selected = combo.options[combo.selectedIndex].value;
+        //let text = combo.options[combo.selectedIndex].text;
+        idTypeBook=selected;
+    }
+    function editarBook(idBook){
+        Books=idBook;
+        let book= listaBook.find(x=>x.idBook==Books);
+        idEditorial=book.idEditorial;
+        idTypeBook=book.idTypeBook;
+        $('#txtTitleBook').val(book.titulo);
+        $('#txtSipnosis').val(book.sipnosis)
+        $('#txtNumPage').val(book.paginas)
+        cargarEditorial(listEditorial,book.idEditorial);
+        cargarTypeBooks(listTypeBook,book.idTypeBook);
+
+
+       $('#idTituloModalBook').html("Editar Libro");
+       $('#modalBook').modal({keyboard:true});
+    }
+</script>
+}
+}
+
+else if(isStandar)
+{
+           <h1>Listado de Libros</h1>
+
+
+<div class="row">
+
+    <table class="table">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Titulo</th>
+                <th scope="col">Sipnosis</th>
+                <th scope="col">Numero paginas</th>
+                <th scope="col">Editorial</th>
+                <th scope="col">Tipo de libro</th>
+            </tr>
+        </thead>
+
+        <tbody id="cuerpoBooks"></tbody>
+    </table>
+
+</div>
+
+
+@section Scripts{
+  @{
+    }
+
+<script type="text/javascript" charset="utf-8">
+
+    var listaBook= [];
+    var listEditorial=[];
+    var listTypeBook=[];
+    $(document).ready(function () {
+
+
+       getAllEditorial();
+       getAllTypeBook();
+       getAllMyBook();
+
+    });
+    function getAllMyBook() {
+        modalProcesando(true);
+        $.ajax({
+            url: '@Url.Action("GetAllMyBook", "Book")',
+            method: 'GET',
+            dataType: "json",
+            success: function (data) {
+                modalProcesando(false);
+                console.log(data);
+                if(data.isSuccess)
+                {
+                    listaBook=data.result;
+                    cargarGridBook(listaBook);
+                    console.log(listaBook);
+                }else{
+                    Swal.fire(
+                                'Opps!',
+                                data.message,
+                                'error');
+                }
+
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                    modalProcesando(false);
+                    console.error(xhr, textStatus, errorThrown);
+                }
+         });
+    }
+    function cargarGridBook(data){
+        console.log(data);
+
+        $("#cuerpoBooks").html("");
+        for(var i=0; i<data.length ; i++){
+            var tr=`
+             <tr>
+                <th>`+ data[i].titulo+ `</th>
+                <th> `+ data[i].sipnosis +`</th>
+                <th> `+ data[i].paginas +`</th>
+                <th> `+ data[i].nombre + `</th>
+                <th> `+ data[i].typeBook + `</th>
+            </tr>
+            `;
+            $("#cuerpoBooks").append(tr);
+        }
+    }
+
+    function getAllEditorial(){
+        modalProcesando(true);
+        $.ajax({
+            url: '@Url.Action("GetAllEditorial", "Book")',
+            method: 'GET',
+            dataType: "json",
+            success: function (data) {
+                modalProcesando(false);
+                if(data.isSuccess)
+                {
+                    listEditorial=data;
+                    console.log(listEditorial);
+                    cargarEditorial(listEditorial);
+                }else{
+                    Swal.fire(
+                        'Opps!',
+                        data.message,
+                        'error');
+                }
+
+                
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                    modalProcesando(false);
+                    console.error(xhr, textStatus, errorThrown);
+                }
+         });
+    }
+    function getAllTypeBook() {
+        modalProcesando(true);
+        $.ajax({
+            url: '@Url.Action("GetAllTypeBook", "Book")',
+            method: 'GET',
+            dataType: "json",
+            success: function (data) {
+                modalProcesando(false);
+                if(data.isSuccess)
+                {
+                    listTypeBook=data;
+                    console.log(listTypeBook)
+                    cargarTypeBooks(listTypeBook);
+                }else{
+                    Swal.fire(
+                        'Opps!',
+                        data.message,
+                        'error');
+                }
+
+
+                
+            },
+            error: function (xhr, textStatus, errorThrown) {
+                    modalProcesando(false);
+                    console.error(xhr, textStatus, errorThrown);
+                }
+         });
+    }
+    </script>
+    }
+}
+
+

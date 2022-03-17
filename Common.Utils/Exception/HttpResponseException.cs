@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Common.Utils.Exception
+namespace Common.Utils.Exceptions
 {
     public class HttpResponseException: SystemException
     {

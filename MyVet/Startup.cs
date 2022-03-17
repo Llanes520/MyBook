@@ -1,4 +1,3 @@
-using Infraestructure.Core.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -28,11 +27,11 @@ namespace MyVet
         public void ConfigureServices(IServiceCollection services)
         {
             #region Context SQL Server
-            services.AddDbContext<DataContext>(options =>
-            {
-                options.UseSqlServer(this.Configuration.GetConnectionString("ConnectionStringSqlServer"));
+            //services.AddDbContext<DataContext>(options =>
+            //{
+            //    options.UseSqlServer(this.Configuration.GetConnectionString("ConnectionStringSqlServer"));
 
-            });
+            //});
 
             #endregion
 
@@ -45,7 +44,7 @@ namespace MyVet
                 .AddCookie(options =>
                 {
                     options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-                    options.SlidingExpiration = true;
+                    options.SlidingExpiration = false;
                     options.AccessDeniedPath = "/Forbidden/";
                     options.LoginPath = "/Auth/Login";
                 });

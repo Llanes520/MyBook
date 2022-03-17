@@ -1,8 +1,12 @@
-﻿using Common.Utils.Utils;
-using Infraestructure.Core.UnitOfWork.Interface;
-using Infraestructure.Entity.Models;
+﻿using Common.Utils.Enums;
+using Common.Utils.RestServices.Interfaces;
+using Common.Utils.Utils;
+using Microsoft.Extensions.Configuration;
 using MyVet.Domain.Dto;
+using MyVet.Domain.Dto.RestSevices;
+using MyVet.Domain.Dto.User;
 using MyVet.Domain.Services.Interface;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,134 +19,171 @@ namespace MyVet.Domain.Services
     public class UserServices : IUserServices
     {
         #region Attribute
-        private readonly IUnitOfWork _uniOfWork;
+        private readonly IRestServices _restServices;
+        private readonly IConfiguration _config;
         #endregion
 
         #region Builder
-        public UserServices(IUnitOfWork uniOfWork)
+        public UserServices(IRestServices restServices, IConfiguration config)
         {
-            _uniOfWork = uniOfWork;
+            _restServices = restServices;
+            _config = config;
         }
         #endregion
 
         #region authentication
 
-        public ResponseDto Login(UserDto user)
+        public async Task<ResponseDto> Login(LoginDto user)
         {
-            ResponseDto response = new ResponseDto();
+            string urlBase = _config.GetSection("ApiMyBook").GetSection("UrlBase").Value;
+            string Controller = _config.GetSection("ApiMyBook").GetSection("ControlerAuthentication").Value;
+            string Method = _config.GetSection("ApiMyBook").GetSection("MethodLogin").Value;
 
-            UserEntity result = _uniOfWork.UserRepository.FirstOrDefault(x => x.Email == user.UserName
-                                                                            && x.Password == user.Password,
-                                                                           r => r.RolUserEntities);
-            if (result == null)
+            LoginDto parametres = new LoginDto()
             {
-                response.Message = "Usuario o contraseña inválida!";
-                response.IsSuccess = false;
-            }
-            else
-            {
-                response.Result = result;
-                response.IsSuccess = true;
-                response.Message = "Usuario autenticado!";
-            }
+                Password=user.Password,
+                UserName=user.UserName,
+            };
+            Dictionary<string, string> headers = new Dictionary<string, string>();
+            ResponseDto resultToken = await _restServices.PostRestServiceAsync<ResponseDto>(urlBase, Controller, Method, parametres, headers);
 
-            return response;
+            return resultToken;
+
+            //ResponseDto response = new ResponseDto();
+            //UserEntity result = _uniOfWork.UserRepository.FirstOrDefault(x => x.Email == user.UserName
+            //                                                                && x.Password == user.Password,
+            //                                                               r => r.RolUserEntities);
+            //if (result == null)
+            //{
+            //    response.Message = "Usuario o contraseña inválida!";
+            //    response.IsSuccess = false;
+            //}
+            //else
+            //{
+            //    response.Result = result;
+            //    response.IsSuccess = true;
+            //    response.Message = "Usuario autenticado!";
+            //}
+
+            //return response;
         }
 
         #endregion
 
         #region Methods Crud
-        public List<UserEntity> GetAll()
+        public async Task<ResponseDto> GetallUser(string token)
         {
-            return _uniOfWork.UserRepository.GetAll().ToList();
+            string urlBase = _config.GetSection("ApiMyBook").GetSection("UrlBase").Value;
+            string Controller = _config.GetSection("ApiMyBook").GetSection("ControlerUser").Value;
+            string Method = _config.GetSection("ApiMyBook").GetSection("MethodGetAllUser").Value;
+
+            Dictionary<string, string> headers = new Dictionary<string, string>();
+            Dictionary<string, string> parametres = new Dictionary<string, string>();
+            headers.Add("Token", token);
+
+            ResponseDto response = await _restServices.GetRestServiceAsync<ResponseDto>(urlBase, Controller, Method, parametres, headers);
+            if (response.IsSuccess)
+                response.Result = JsonConvert.DeserializeObject<List<UpdateUserDto>>(response.Result.ToString());
+
+            return response;
+
+
+            //return _uniofwork.userrepository.getall().tolist();
         }
-
-        public UserEntity GetUser(int idUser)
+        public async Task<ResponseDto> InsertUser(string token ,InsertUserDto user)
         {
-            return _uniOfWork.UserRepository.Find(x => x.IdUser == idUser);
-        }
+            string urlBase = _config.GetSection("ApiMyBook").GetSection("UrlBase").Value;
+            string Controller = _config.GetSection("ApiMyBook").GetSection("ControlerUser").Value;
+            string Method = _config.GetSection("ApiMyBook").GetSection("MethodInsertUser").Value;
 
-        public async Task<bool> UpdateUser(UserEntity user)
-        {
-            UserEntity _user = GetUser(user.IdUser);
-
-            _user.Name = user.Name;
-            _user.LastName = user.LastName;
-            _uniOfWork.UserRepository.Update(_user);
-
-            return await _uniOfWork.Save() > 0;
-
-            //return _uniOfWork.UserRepository.Find(x => x.IdUser == idUser);
-        }
-
-        public async Task<bool> DeleteUser(int idUser)
-        {
-            _uniOfWork.UserRepository.Delete(idUser);
-
-            return await _uniOfWork.Save() > 0;
-        }
-        public async Task<ResponseDto> CreateUser(UserEntity data)
-        {
-            ResponseDto result = new ResponseDto();
-
-            if (Utils.ValidateEmail(data.Email))
+            Dictionary<string, string> headers = new Dictionary<string, string>();
+            InsertUserDto parametres = new InsertUserDto()
             {
-                if (_uniOfWork.UserRepository.FirstOrDefault(x => x.Email == data.Email) == null)
-                {
-                    int idRol = data.IdUser;
-                    data.Password = "123456";
-                    data.IdUser = 0;
+                Name = user.Name,
+                LastName  = user.LastName,
+                Email = user.Email,
+                Password = user.Password,
+            };
+            headers.Add("Token", token);
 
-                    RolUserEntity rolUser = new RolUserEntity()
-                    {
-                        IdRol = idRol,
-                        UserEntity = data
-                    };
+            ResponseDto response = await _restServices.PostRestServiceAsync<ResponseDto>(urlBase, Controller, Method, parametres, headers);
 
-                    _uniOfWork.RolUserRepository.Insert(rolUser);
-                    result.IsSuccess = await _uniOfWork.Save() > 0;
-                }
-                else
-                    result.Message = "Email ya se encuestra registrado, utilizar otro!";
-            }
-            else
-                result.Message = "Usuarioc con Email Inválido";
-
-            return result;
+            return response;
         }
 
-        public async Task<ResponseDto> Register(UserDto data)
+        public async Task<ResponseDto> UpdateUser(string token ,UpdateUserDto user)
         {
-            ResponseDto result = new ResponseDto();
+            string urlBase = _config.GetSection("ApiMyBook").GetSection("UrlBase").Value;
+            string Controller = _config.GetSection("ApiMyBook").GetSection("ControlerUser").Value;
+            string Method = _config.GetSection("ApiMyBook").GetSection("MethodUpdateUser").Value;
 
-            if (Utils.ValidateEmail(data.UserName))
+            Dictionary<string, string> headers = new Dictionary<string, string>();
+            UpdateUserDto parametres = new UpdateUserDto()
             {
-                if (_uniOfWork.UserRepository.FirstOrDefault(x => x.Email == data.UserName) == null)
-                {
+                IdUser = user.IdUser,
+                Name = user.Name,
+                LastName = user.LastName,
+                Email = user.Email,
+                Password = user.Password,
+            };
+            headers.Add("Token", token);
 
-                    RolUserEntity rolUser = new RolUserEntity()
-                    {
-                        IdRol = RolUser.Estandar.GetHashCode(),
-                        UserEntity = new UserEntity()
-                        {
-                            Email = data.UserName,
-                            LastName = data.LastName,
-                            Name = data.Name,
-                            Password = data.Password
-                        }
-                    };
+            ResponseDto response = await _restServices.PutRestServiceAsync<ResponseDto>(urlBase, Controller, Method, parametres, headers);
 
-                    _uniOfWork.RolUserRepository.Insert(rolUser);
-                    result.IsSuccess = await _uniOfWork.Save() > 0;
-                }
-                else
-                    result.Message = "Email ya se encuestra registrado, utilizar otro!";
-            }
-            else
-                result.Message = "Usuarioc con Email Inválido";
-
-            return result;
+            return response;
         }
+
+        public async Task<ResponseDto> DeleteUser(string token ,string idUser)
+        {
+            string urlBase = _config.GetSection("ApiMyBook").GetSection("UrlBase").Value;
+            string Controller = _config.GetSection("ApiMyBook").GetSection("ControlerUser").Value;
+            string Method = _config.GetSection("ApiMyBook").GetSection("MethodDeleteUser").Value;
+
+            Dictionary<string, string> headers = new Dictionary<string, string>();
+            Dictionary<string, string> parametres = new Dictionary<string, string>();
+
+            headers.Add("Token", token);
+            parametres.Add("idUser", idUser);
+
+            ResponseDto response = await _restServices.DeleteRestServiceAsync<ResponseDto>(urlBase, Controller, Method, parametres, headers);
+            if (response.IsSuccess)
+                response.Message = "Se eliminó correctamente el usuario";
+
+            return response;
+        }
+
+        //public async Task<ResponseDto> Register(UserDto data)
+        //{
+        //    ResponseDto result = new ResponseDto();
+
+        //    if (Utils.ValidateEmail(data.UserName))
+        //    {
+        //        if (_uniOfWork.UserRepository.FirstOrDefault(x => x.Email == data.UserName) == null)
+        //        {
+
+        //            RolUserEntity rolUser = new RolUserEntity()
+        //            {
+        //                IdRol = RolUser.Estandar.GetHashCode(),
+        //                UserEntity = new UserEntity()
+        //                {
+        //                    Email = data.UserName,
+        //                    LastName = data.LastName,
+        //                    Name = data.Name,
+        //                    Password = data.Password
+        //                }
+        //            };
+
+        //            _uniOfWork.RolUserRepository.Insert(rolUser);
+        //            result.IsSuccess = await _uniOfWork.Save() > 0;
+        //        }
+        //        else
+        //            result.Message = "Email ya se encuestra registrado, utilizar otro!";
+        //    }
+        //    else
+        //        result.Message = "Usuario con Email Inválido";
+
+        //    return result;
+        //}
         #endregion
 
     }

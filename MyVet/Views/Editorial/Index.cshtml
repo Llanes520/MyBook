@@ -1,0 +1,385 @@
+﻿@using Common.Utils.Enums
+@using static Common.Utils.Constant.Const
+
+@{
+    ViewData["Title"] = "Editoriales";
+
+    var idRols = User.Claims.FirstOrDefault(x => x.Type == TypeClaims.IdRol).Value;
+
+    bool isAdmin = idRols.Any(x => x.ToString() == Convert.ToInt32(Enums.RolUser.Administrador).ToString());
+    bool isStandar = idRols.Any(x => x.ToString() == Convert.ToInt32(Enums.RolUser.Estandar).ToString());
+}
+
+@if (isAdmin)
+{
+    <h1>Listado de Editoriales</h1>
+
+<p>
+
+    <button class="btn btn-primary" onclick="nuevaCita()">
+
+        <i class="fas fa-table"></i> Nueva Editorial 
+    </button>
+</p>
+
+<div class="row">
+
+    <table class="table">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Sede</th>
+                <th scope="col">Opciones</th>
+            </tr>
+        </thead>
+
+        <tbody id="cuerpoEdit"></tbody>
+    </table>
+
+</div>
+
+<div class="modal fade" id="modalEdit" tabindex="1" role="dialog" aria-labelledby="modalDateLabel" aria-hidden="true">
+
+    <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="idTituloModalEdit">Crear Editorial</h5>
+            </div>
+            <div class="modal-body">
+                <form>
+
+                    <div class="row">
+                        <div class="col-md-6 form-group">
+                            <label for="recipient-name" class="col-form-label">Nombre</label>
+                            <input type="text" class="form-control" id="txtName" required>
+                        </div>
+                        <div class="col-md-6 form-group">
+                            <label for="recipient-name" class="col-form-label">Sede</label>
+                            <input type="text" class="form-control" id="txtSede" required>
+                        </div>
+                    </div>
+
+
+
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" data-dismiss="modal" >
+                    <i class="fas fa-window-close"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn btn-success" onclick="guardarEditorial()">
+                    <i class="far fa-save"></i>
+                    Guardar
+                </button>
+            </div>
+        </div> 
+    </div>
+</div>
+
+@section Scripts{
+  @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+<script type="text/javascript" charset="utf-8">
+     //var listaPets = JSON.parse('@Json.Serialize(@Model)');
+
+
+     var listaEdit= [];
+
+     let idEditorial='';
+     let Edits='';
+
+     $(document).ready(function () {
+        getAllEditorial();
+
+     });
+
+     function getAllEditorial() {
+         modalProcesando(true);
+         $.ajax({
+             url: '@Url.Action("GetAllEditorial", "Editorial")',
+             method: 'GET',
+             dataType: "json",
+             success: function (data) {
+                modalProcesando(false);
+                console.log(data);
+                if(data.isSuccess)
+                {
+                    listaEdit=data.result;
+                    cargarGridEdit(listaEdit);
+                    console.log(listaEdit);
+                }else{
+                    Swal.fire(
+                                'Opps!',
+                                data.message,
+                                'error');
+                }
+             },
+             error: function (xhr, textStatus, errorThrown) {
+                     modalProcesando(false);
+                     console.error(xhr, textStatus, errorThrown);
+                 }
+          });
+     }
+
+     function cargarGridEdit(data){
+         $("#cuerpoEdit").html("");
+         console.log(data);
+         for(var i=0; i<data.length; i++){
+             var tr=`
+              <tr>
+                 <th>`+ data[i].nombre + `</th>
+                 <th>`+ data[i].sede + `</th>
+                 <td>
+                 <button  class="btn btn-warning" onclick="editarEdit(`+ data[i].idEditorial +`)"><i class="fas fa-edit"></i> Editar</button>
+                 <button class="btn btn-danger" onclick="eliminarEdit(`+ data[i].idEditorial +`)"><i class="far fa-trash-alt"></i> Eliminar</button>
+                 </td>
+             </tr>
+             `;
+             $("#cuerpoEdit").append(tr);
+         }
+     }
+
+     function nuevaCita(){
+         limpiarForm();
+
+         $('#idTituloModalEdit').html("Crear Editorial");
+         $('#modalEdit').modal({keyboard:true});
+     }
+
+     function limpiarForm(){
+         $("#txtName").val('');
+         $("#txtSede").val('');
+     }
+
+     function validarForm(){
+        if($("#txtName").val()=='')
+        {
+                $("#txtName").focus();
+                toastMessage('warning','El nombre de la editorial es obligatoria.');
+                return false;
+        }
+        if($("#txtSede").val()=='')
+        {
+                $("#txtSede").focus();
+                toastMessage('warning','La sede de la editorial es obligatoria.');
+                return false;
+        }
+        return true;
+     }
+
+     function guardarEditorial(){
+        if(validarForm())
+        {
+            let parametro={
+                nombre:$("#txtName").val(),
+                sede:$("#txtSede").val(),
+            };
+            console.log(Edits);
+            if(Edits=='')
+            {
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("InsertEditorial", "Editorial")',
+                    method: 'POST',
+                    data:parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaEdit);
+                        if (data){
+                            $('#modalEdit').modal('hide');
+                            limpiarForm();
+                            toastMessage('success','Editorial guardada exitosamente!');
+                            getAllEditorial();
+                        }else{
+                             toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                            modalProcesando(false);
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                            console.error(xhr, textStatus, errorThrown);
+                        }
+                 });
+            }
+            else{
+                parametro.idEditorial=Edits;
+                console.log(parametro);
+                console.log('actualizar');
+                console.log(parametro);
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("UpdateEditorial", "Editorial")',
+                    method: 'PUT',
+                    data:parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaEdit);
+                        if (data){
+                            $('#modalEdit').modal('hide');
+                            limpiarForm();
+                            toastMessage('success','Editorial guardado exitosamente!');
+                            getAllEditorial();
+                        }else{
+                             toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                            modalProcesando(false);
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                            console.error(xhr, textStatus, errorThrown);
+                        }
+                 });
+            }
+        }
+     }
+
+     function eliminarEdit(idEditorial){
+
+        console.log("mandó a eliminar", idEditorial);
+        Swal.fire({
+            title: '¿Confirmar Eliminacion?',
+            text: "No podrás revertir esto.!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Si, Eliminar!',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                modalProcesando(true);
+                //petición
+                $.ajax({
+                    url: '@Url.Action("DeleteEditorial", "Editorial")',
+                    method: 'DELETE',
+                    data:{
+                        id:idEditorial
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(data);
+                        if (data.isSuccess){
+                            //listaDates=listaDates.filter(x=>x.id!=id);
+                            getAllEditorial();
+                            Swal.fire(
+                                'Eliminado!',
+                                data.message,
+                                'success');
+                        }else{
+                            Swal.fire(
+                                'Error!',
+                                data.message,
+                                'error');
+                        }
+                     },
+                     error: function (xhr, textStatus, errorThrown) {
+                         modalProcesando(false);
+                         console.error(xhr, textStatus, errorThrown);
+                     }
+                  });
+                }
+            });
+        }
+
+     function editarEdit(idEditorial){
+        Edits=idEditorial;
+        let Edit= listaEdit.find(x=>x.idEditorial==Edits);
+        console.log(Edit)
+        $('#txtName').val(Edit.nombre);
+        $('#txtSede').val(Edit.sede);
+
+        $('#idTituloModalEdit').html("Modificar Editorial");
+        $('#modalEdit').modal({keyboard:true});
+     }
+
+     
+</script>
+}
+}
+
+
+else
+{
+    <div class="row">
+
+    <table class="table">
+        <thead class="thead-dark">
+            <tr>
+                <th scope="col">Nombre</th>
+                <th scope="col">Sede</th>
+            </tr>
+        </thead>
+
+        <tbody id="cuerpoEdit"></tbody>
+    </table>
+
+</div>
+
+@section Scripts{
+  @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+<script type="text/javascript" charset="utf-8">
+
+     var listaEdit= [];
+
+     let idEditorial='';
+     let Edits='';
+
+     $(document).ready(function () {
+        getAllEditorial();
+
+     });
+
+     function getAllEditorial() {
+         modalProcesando(true);
+         $.ajax({
+             url: '@Url.Action("GetAllEditorial", "Editorial")',
+             method: 'GET',
+             dataType: "json",
+             success: function (data) {
+                modalProcesando(false);
+                console.log(data);
+                if(data.isSuccess)
+                {
+                    listaEdit=data.result;
+                    cargarGridEdit(listaEdit);
+                    console.log(listaEdit);
+                }else{
+                    Swal.fire(
+                                'Opps!',
+                                data.message,
+                                'error');
+                }
+             },
+             error: function (xhr, textStatus, errorThrown) {
+                     modalProcesando(false);
+                     console.error(xhr, textStatus, errorThrown);
+                 }
+          });
+     }
+
+     function cargarGridEdit(data){
+         $("#cuerpoEdit").html("");
+         console.log(data);
+         for(var i=0; i<data.length; i++){
+             var tr=`
+              <tr>
+                 <th>`+ data[i].nombre + `</th>
+                 <th>`+ data[i].sede + `</th>
+             </tr>
+             `;
+             $("#cuerpoEdit").append(tr);
+         }
+     }
+
+     </script>
+}
+}

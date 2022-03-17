@@ -80,5 +80,10 @@ namespace Common.Utils.Enums
             Veterinario = 2,
             Estandar = 3,
         }
+
+        public enum Autores
+        {
+            Predeterminado = 1
+        }
     }
 }

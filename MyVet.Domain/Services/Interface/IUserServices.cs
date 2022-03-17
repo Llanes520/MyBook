@@ -1,5 +1,6 @@
-﻿using Infraestructure.Entity.Models;
-using MyVet.Domain.Dto;
+﻿using MyVet.Domain.Dto;
+using MyVet.Domain.Dto.RestSevices;
+using MyVet.Domain.Dto.User;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -10,21 +11,18 @@ namespace MyVet.Domain.Services.Interface
     public interface IUserServices
     {
         #region Crud
-        List<UserEntity> GetAll();
+        Task<ResponseDto> GetallUser(string token);
+        Task<ResponseDto> InsertUser(string token, InsertUserDto user);
+        Task<ResponseDto> DeleteUser(string token, string idUser);
+        Task<ResponseDto> UpdateUser(string token, UpdateUserDto user);
 
-        UserEntity GetUser(int idUser);
 
-        Task<bool> UpdateUser(UserEntity user);
-
-        Task<bool> DeleteUser(int idUser);
-
-        Task<ResponseDto> CreateUser(UserEntity data); 
         #endregion
 
         #region Auth
-        ResponseDto Login(UserDto user);
+        Task<ResponseDto> Login(LoginDto user);
 
-        Task<ResponseDto> Register(UserDto data);
+        //Task<ResponseDto> Register(UserDto data);
         #endregion
     }
 }

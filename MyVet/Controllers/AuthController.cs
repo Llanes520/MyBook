@@ -1,16 +1,19 @@
 ﻿using Common.Utils.Constant;
-using Infraestructure.Entity.Models;
+using Common.Utils.Utils;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using MyVet.Domain.Dto;
+using MyVet.Domain.Dto.RestSevices;
 using MyVet.Domain.Services.Interface;
 using MyVet.Handler;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using static Common.Utils.Constant.Const;
 
 namespace MyVet.Controllers
 {
@@ -32,9 +35,9 @@ namespace MyVet.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(UserDto user)
+        public async Task<IActionResult> Login(LoginDto user)
         {
-            ResponseDto response = _userServices.Login(user);
+            ResponseDto response = await _userServices.Login(user);
 
             if (!response.IsSuccess)
             {
@@ -44,14 +47,26 @@ namespace MyVet.Controllers
             }
             else
             {
-                UserEntity userEntity = (UserEntity)response.Result;
+                //UserEntity userEntity = (UserEntity)response.Result;
 
+                //var claims = new List<Claim>
+                //{
+                //    new Claim(ClaimTypes.Name, userEntity.FullName),
+                //    new Claim(TypeClaims.IdUser, userEntity.IdUser.ToString()),
+                //    new Claim(TypeClaims.UserName, userEntity.Email),
+                //    new Claim(TypeClaims.IdUser, String.Join(",",userEntity.RolUserEntities.Select(x=>x.IdRol))),
+                //};
+
+
+                TokenDto token = JsonConvert.DeserializeObject<TokenDto>(response.Result.ToString());
+                string idRoles = Utils.GetClaimValue(token.Token, TypeClaims.IdRol);
+                string idUser = Utils.GetClaimValue(token.Token, TypeClaims.IdUser);
                 var claims = new List<Claim>
                 {
-                    new Claim(ClaimTypes.Name, userEntity.FullName),
-                    new Claim(TypeClaims.IdUser, userEntity.IdUser.ToString()),
-                    new Claim(TypeClaims.UserName, userEntity.Email),
-                    new Claim(TypeClaims.IdUser, String.Join(",",userEntity.RolUserEntities.Select(x=>x.IdRol))),
+                    new Claim(TypeClaims.Token, token.Token),
+                    new Claim(TypeClaims.Expiracion, token.Expiration.ToString()),
+                    new Claim(TypeClaims.IdRol, idRoles),
+                    new Claim(TypeClaims.IdUser, idUser),
                 };
 
                 var claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -61,7 +76,7 @@ namespace MyVet.Controllers
                     //AllowRefresh = <bool>,
                     // Refreshing the authentication session should be allowed.
 
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes(30),
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddMinutes((token.Expiration/60)-10),
                     // The time at which the authentication ticket expires. A 
                     // value set here overrides the ExpireTimeSpan option of 
                     // CookieAuthenticationOptions set with AddCookie.
@@ -96,30 +111,30 @@ namespace MyVet.Controllers
             return RedirectToAction(nameof(Login));
         }
 
-        [HttpGet]
-        public IActionResult Register()
-        {
-            return View(new UserDto());
-        }
+        //[HttpGet]
+        //public IActionResult Register()
+        //{
+        //    return View(new UserDto());
+        //}
 
-        [HttpPost]
-        public async Task<IActionResult> Register(UserDto user)
-        {
-            IActionResult response;
+        //[HttpPost]
+        //public async Task<IActionResult> Register(UserDto user)
+        //{
+        //    IActionResult response;
 
-            var result = await _userServices.Register(user);
-            if (!result.IsSuccess)
-            {
-                ModelState.Clear();
-                ModelState.AddModelError(string.Empty, result.Message);
-                return View(user);
-            }
-            else
-            {
-                response = RedirectToAction(nameof(Login));
-            }
-            return response;
-        }
+        //    var result = await _userServices.Register(user);
+        //    if (!result.IsSuccess)
+        //    {
+        //        ModelState.Clear();
+        //        ModelState.AddModelError(string.Empty, result.Message);
+        //        return View(user);
+        //    }
+        //    else
+        //    {
+        //        response = RedirectToAction(nameof(Login));
+        //    }
+        //    return response;
+        //}
     }
 }
 

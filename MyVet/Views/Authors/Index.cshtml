@@ -1,0 +1,387 @@
+﻿@using Common.Utils.Enums
+@using static Common.Utils.Constant.Const
+
+@{
+    ViewData["Title"] = "Autores";
+
+    var idRols = User.Claims.FirstOrDefault(x => x.Type == TypeClaims.IdRol).Value;
+
+    bool isAdmin = idRols.Any(x => x.ToString() == Convert.ToInt32(Enums.RolUser.Administrador).ToString());
+    bool isStandar = idRols.Any(x => x.ToString() == Convert.ToInt32(Enums.RolUser.Estandar).ToString());
+}
+
+@if (isAdmin)
+{
+    <h1>Listado de Autores</h1>
+
+    <p>
+
+        <button class="btn btn-primary" onclick="nuevaCita()">
+
+            <i class="fas fa-table"></i> Nuevo Autor
+        </button>
+    </p>
+
+    <div class="row">
+
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Apellido</th>
+                    <th scope="col">Opciones</th>
+                </tr>
+            </thead>
+
+            <tbody id="cuerpoAuth"></tbody>
+        </table>
+
+    </div>
+
+    <div class="modal fade" id="modalAuthor" tabindex="1" role="dialog" aria-labelledby="modalDateLabel" aria-hidden="true">
+
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="idTituloModalAuthor">Crear Editorial</h5>
+                </div>
+                <div class="modal-body">
+                    <form>
+
+                        <div class="row">
+                            <div class="col-md-6 form-group">
+                                <label for="recipient-name" class="col-form-label">Nombre</label>
+                                <input type="text" class="form-control" id="txtName" required>
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label for="recipient-name" class="col-form-label">Apellido</label>
+                                <input type="text" class="form-control" id="txtLastName" required>
+                            </div>
+                        </div>
+
+
+
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" data-dismiss="modal" >
+                        <i class="fas fa-window-close"></i>
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn btn-success" onclick="guardarAuthor()">
+                        <i class="far fa-save"></i>
+                        Guardar
+                    </button>
+                </div>
+            </div> 
+        </div>
+    </div>
+
+    @section Scripts{
+  @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+<script type="text/javascript" charset="utf-8">
+     //var listaPets = JSON.parse('@Json.Serialize(@Model)');
+
+
+     var listaAuthor= [];
+
+     let idAuthor='';
+     let Author='';
+
+     $(document).ready(function () {
+        getAllAuthors();
+
+     });
+
+     function getAllAuthors() {
+         modalProcesando(true);
+         $.ajax({
+             url: '@Url.Action("GetAllAuthors", "Authors")',
+             method: 'GET',
+             dataType: "json",
+             success: function (data) {
+                modalProcesando(false);
+                console.log(data);
+                if(data.isSuccess)
+                {
+                    listaAuthor=data.result;
+                    cargarGridEdit(listaAuthor);
+                    console.log(listaAuthor);
+                }else{
+                    Swal.fire(
+                                'Opps!',
+                                data.message,
+                                'error');
+                }
+             },
+             error: function (xhr, textStatus, errorThrown) {
+                     modalProcesando(false);
+                     console.error(xhr, textStatus, errorThrown);
+                 }
+          });
+     }
+
+     function cargarGridEdit(data){
+         $("#cuerpoAuth").html("");
+         console.log(data);
+         for(var i=0; i<data.length; i++){
+             var tr=`
+              <tr>
+                 <th>`+ data[i].nombre + `</th>
+                 <th>`+ data[i].apellidos + `</th>
+                 <td>
+                 <button  class="btn btn-warning" onclick="editarEdit(`+ data[i].id +`)"><i class="fas fa-edit"></i> Editar</button>
+                 <button class="btn btn-danger" onclick="eliminarAuthor(`+ data[i].id +`)"><i class="far fa-trash-alt"></i> Eliminar</button>
+                 </td>
+             </tr>
+             `;
+             $("#cuerpoAuth").append(tr);
+         }
+     }
+
+     function nuevaCita(){
+         limpiarForm();
+
+         $('#idTituloModalAuthor').html("Crear Autor");
+         $('#modalAuthor').modal({keyboard:true});
+     }
+
+     function limpiarForm(){
+         $("#txtName").val('');
+         $("#txtLastName").val('');
+     }
+
+     function validarForm(){
+        if($("#txtName").val()=='')
+        {
+                $("#txtName").focus();
+                toastMessage('warning','El nombre del autor es obligatorio.');
+                return false;
+        }
+        if($("#txtSede").val()=='')
+        {
+                $("#txtLastName").focus();
+                toastMessage('warning','El apellido del autor obligatorio.');
+                return false;
+        }
+        return true;
+     }
+
+     function guardarAuthor(){
+        if(validarForm())
+        {
+            let parametro={
+                nombre:$("#txtName").val(),
+                apellidos:$("#txtLastName").val(),
+            };
+            console.log(Author);
+            if(Author=='')
+            {
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("InsertAuthors", "Authors")',
+                    method: 'POST',
+                    data:parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaAuthor);
+                        if (data){
+                            $('#modalAuthor').modal('hide');
+                            limpiarForm();
+                            toastMessage('success','Autor guardado exitosamente!');
+                            getAllAuthors();
+                        }else{
+                             toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                            modalProcesando(false);
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                            console.error(xhr, textStatus, errorThrown);
+                        }
+                 });
+            }
+            else{
+                parametro.id=Author;
+                console.log(parametro);
+                console.log('actualizar');
+                console.log(parametro);
+                modalProcesando(true);
+                $.ajax({
+                    url: '@Url.Action("UpdateAuthor", "Authors")',
+                    method: 'PUT',
+                    data:parametro,
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(listaAuthor);
+                        if (data){
+                            $('#modalAuthor').modal('hide');
+                            limpiarForm();
+                            toastMessage('success','Autor guardado exitosamente!');
+                            getAllAuthors();
+                        }else{
+                             toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                        }
+                    },
+                    error: function (xhr, textStatus, errorThrown) {
+                            modalProcesando(false);
+                            toastMessage('error','Hubo un error al guardar, por favor intentarlo nuevamente!');
+                            console.error(xhr, textStatus, errorThrown);
+                        }
+                 });
+            }
+        }
+     }
+
+     function eliminarAuthor(id){
+
+        console.log("mandó a eliminar", id);
+        Swal.fire({
+            title: '¿Confirmar Eliminacion?',
+            text: "No podrás revertir esto.!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: 'Si, Eliminar!',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                modalProcesando(true);
+                //petición
+                $.ajax({
+                    url: '@Url.Action("DeleteAuthors", "Authors")',
+                    method: 'DELETE',
+                    data:{
+                        id:id
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        modalProcesando(false);
+                        console.log(data);
+                        if (data.isSuccess){
+                            //listaDates=listaDates.filter(x=>x.id!=id);
+                            getAllAuthors();
+                            Swal.fire(
+                                'Eliminado!',
+                                data.message,
+                                'success');
+                        }else{
+                            Swal.fire(
+                                'Error!',
+                                data.message,
+                                'error');
+                        }
+                     },
+                     error: function (xhr, textStatus, errorThrown) {
+                         modalProcesando(false);
+                         console.error(xhr, textStatus, errorThrown);
+                     }
+                  });
+                }
+            });
+        }
+
+     function editarEdit(idAuthor){
+        Author=idAuthor;
+        let Auth= listaAuthor.find(x=>x.id==Author);
+        console.log(Auth)
+        $('#txtName').val(Auth.nombre);
+        $('#txtLastName').val(Auth.apellidos);
+
+        $('#idTituloModalAuthor').html("Modificar Autor");
+        $('#modalAuthor').modal({keyboard:true});
+     }
+
+
+</script>
+}
+}
+
+
+else if (isStandar)
+{
+    <div class="row">
+
+        <table class="table">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Nombre</th>
+                    <th scope="col">Apellido</th>
+                </tr>
+            </thead>
+
+            <tbody id="cuerpoAuth"></tbody>
+        </table>
+
+    </div>
+
+    @section Scripts{
+  @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+<script type="text/javascript" charset="utf-8">
+     //var listaPets = JSON.parse('@Json.Serialize(@Model)');
+
+
+     var listaAuthor= [];
+
+     let idAuthor='';
+     let Author='';
+
+     $(document).ready(function () {
+        getAllAuthors();
+
+     });
+
+     function getAllAuthors() {
+         modalProcesando(true);
+         $.ajax({
+             url: '@Url.Action("GetAllAuthors", "Authors")',
+             method: 'GET',
+             dataType: "json",
+             success: function (data) {
+                modalProcesando(false);
+                console.log(data);
+                if(data.isSuccess)
+                {
+                    listaAuthor=data.result;
+                    cargarGridEdit(listaAuthor);
+                    console.log(listaAuthor);
+                }else{
+                    Swal.fire(
+                                'Opps!',
+                                data.message,
+                                'error');
+                }
+             },
+             error: function (xhr, textStatus, errorThrown) {
+                     modalProcesando(false);
+                     console.error(xhr, textStatus, errorThrown);
+                 }
+          });
+     }
+
+     function cargarGridEdit(data){
+         $("#cuerpoAuth").html("");
+         console.log(data);
+         for(var i=0; i<data.length; i++){
+             var tr=`
+              <tr>
+                 <th>`+ data[i].nombre + `</th>
+                 <th>`+ data[i].apellidos + `</th>
+             </tr>
+             `;
+             $("#cuerpoAuth").append(tr);
+         }
+     }
+     </script>
+}
+}
+
